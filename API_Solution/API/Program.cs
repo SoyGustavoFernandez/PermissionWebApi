@@ -2,6 +2,7 @@ using API_Models.Models;
 using Nest;
 using System.Text.Json.Serialization;
 using Microsoft.OpenApi.Models;
+using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -22,6 +23,15 @@ builder.Services.AddSingleton<IElasticClient>(x =>
     var settings = new ConnectionSettings(uri).DefaultIndex("apiindex");
     return new ElasticClient(settings);
 });
+
+Log.Logger = new LoggerConfiguration()
+    .MinimumLevel
+    .Information()
+    .WriteTo.Console()
+    .WriteTo.File("logs/log.txt", rollingInterval: RollingInterval.Day) 
+    .CreateLogger();
+
+builder.Services.AddSingleton(Log.Logger);
 
 builder.Services.AddSwaggerGen(c =>
 {

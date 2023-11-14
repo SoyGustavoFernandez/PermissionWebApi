@@ -1,6 +1,8 @@
 ﻿using API_Models.Models;
 using Microsoft.AspNetCore.Mvc;
 using Nest;
+using Newtonsoft.Json;
+using Serilog;
 
 namespace API.Controllers
 {
@@ -11,12 +13,13 @@ namespace API.Controllers
     {
         private readonly BackendSrContext _dbContext;
         private readonly IElasticClient _elasticClient;
+        private readonly Serilog.ILogger _logger;
 
-        public PermissionsController(BackendSrContext dbContext, IElasticClient elasticClient)
+        public PermissionsController(BackendSrContext dbContext, IElasticClient elasticClient, Serilog.ILogger logger)
         {
             _dbContext = dbContext;
             _elasticClient = elasticClient;
-
+            _logger = logger;
         }
 
         [HttpPost]
@@ -32,10 +35,12 @@ namespace API.Controllers
                 // Indexar en Elasticsearch
                 var indexResponse = _elasticClient.IndexDocument(permission);
 
+                _logger.Information("Permission requested correctly");
                 return Ok("Permission requested correctly");
             }
             catch (Exception ex)
             {
+                _logger.Error($"Error requesting permission: {ex.Message}");
                 return BadRequest($"Error requesting permission: {ex.Message}");
             }
         }
@@ -61,6 +66,7 @@ namespace API.Controllers
             }
             catch (Exception ex)
             {
+                _logger.Error($"Error obtaining permissions: {ex.Message}");
                 return BadRequest($"Error obtaining permissions: {ex.Message}");
             }
         }
@@ -76,6 +82,7 @@ namespace API.Controllers
 
                 if (existingPermission == null)
                 {
+                    _logger.Warning($"Permission with ID {id} not found");
                     return NotFound($"Permission with ID {id} not found");
                 }
 
@@ -92,10 +99,12 @@ namespace API.Controllers
                     .Doc(modifiedPermission)
                 );
 
+                _logger.Information($"Successfully modified permission");
                 return Ok("Successfully modified permission");
             }
             catch (Exception ex)
             {
+                _logger.Error($"Error modifying permission: {ex.Message}");
                 return BadRequest($"Error modifying permission: {ex.Message}");
             }
         }
