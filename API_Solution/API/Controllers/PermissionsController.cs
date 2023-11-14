@@ -1,7 +1,6 @@
 ﻿using API_Models.Models;
 using Microsoft.AspNetCore.Mvc;
 using Nest;
-using Elasticsearch.Net;
 
 namespace API.Controllers
 {
@@ -18,38 +17,7 @@ namespace API.Controllers
             _dbContext = dbContext;
             _elasticClient = elasticClient;
 
-            // Verificar y crear el índice si no existe
-            //EnsureIndexExists();
         }
-
-        //private void EnsureIndexExists()
-        //{
-        //    var indexName = "apiindex";
-
-        //    var settings = new ConnectionSettings(new Uri("http://localhost:9200/"))
-        //        .DefaultIndex(indexName);
-
-        //    var client = new ElasticClient(settings);
-
-        //    // Verificar si el índice existe
-        //    var indexExistsResponse = client.IndexExists(indexName);
-
-        //    if (!indexExistsResponse.Exists)
-        //    {
-        //        // Si no existe, crear el índice
-        //        var createIndexResponse = client.CreateIndex(indexName, c => c
-        //            .Mappings(ms => ms
-        //                .Map<TblPermission>(m => m.AutoMap())
-        //            )
-        //        );
-
-        //        if (!createIndexResponse.IsValid)
-        //        {
-        //            // Manejar el caso de error al crear el índice
-        //            throw new InvalidOperationException($"Error al crear el índice {indexName}: {createIndexResponse.DebugInformation}");
-        //        }
-        //    }
-        //}
 
         [HttpPost]
         [Route("RequestPermission")]
@@ -57,25 +25,18 @@ namespace API.Controllers
         {
             try
             {
-                using (var context = new BackendSrContext())
-                {
-                    // Lógica para agregar un nuevo permiso a la base de datos SQL
-                    context.TblPermissions.Add(permission);
-                    context.SaveChanges();
-                }
+                // Lógica para agregar un nuevo permiso a la base de datos SQL
+                _dbContext.TblPermissions.Add(permission);
+                _dbContext.SaveChanges();
 
                 // Indexar en Elasticsearch
-                var settings = new ConnectionSettings(new Uri("http://localhost:9200/"))
-                    .DefaultIndex("apiindex");
-                var client = new ElasticClient(settings);
+                var indexResponse = _elasticClient.IndexDocument(permission);
 
-                var indexResponse = client.IndexDocument(permission);
-
-                return Ok("Permiso solicitado correctamente");
+                return Ok("Permission requested correctly");
             }
             catch (Exception ex)
             {
-                return BadRequest($"Error al solicitar el permiso: {ex.Message}");
+                return BadRequest($"Error requesting permission: {ex.Message}");
             }
         }
 
@@ -87,20 +48,12 @@ namespace API.Controllers
             {
                 List<TblPermission> permissions;
 
-                using (var context = new BackendSrContext())
-                {
-                    // Lógica para obtener todos los permisos de la base de datos SQL
-                    permissions = context.TblPermissions.ToList();
-                }
+                // Lógica para obtener todos los permisos de la base de datos SQL
+                permissions = _dbContext.TblPermissions.ToList();
 
                 // Buscar en Elasticsearch
-                var settings = new ConnectionSettings(new Uri("http://localhost:9200/"))
-                    .DefaultIndex("apiindex");
-                var client = new ElasticClient(settings);
-
-                var searchResponse = client.Search<TblPermission>(s => s
-                    .Query(q => q.MatchAll())
-                );
+                var searchResponse = _elasticClient.Search<TblPermission>(s => s
+                    .Query(q => q.MatchAll()));
 
                 var elasticsearchPermissions = searchResponse.Documents.ToList();
 
@@ -108,7 +61,7 @@ namespace API.Controllers
             }
             catch (Exception ex)
             {
-                return BadRequest($"Error al obtener los permisos: {ex.Message}");
+                return BadRequest($"Error obtaining permissions: {ex.Message}");
             }
         }
 
@@ -118,41 +71,33 @@ namespace API.Controllers
         {
             try
             {
-                using (var context = new BackendSrContext())
+                // Lógica para modificar un permiso en la base de datos SQL
+                var existingPermission = _dbContext.TblPermissions.Find(id);
+
+                if (existingPermission == null)
                 {
-                    // Lógica para modificar un permiso en la base de datos SQL
-                    var existingPermission = context.TblPermissions.Find(id);
-
-                    if (existingPermission == null)
-                    {
-                        return NotFound($"Permiso con ID {id} no encontrado");
-                    }
-
-                    // Actualizar propiedades del permiso existente
-                    existingPermission.EmployeeForename = modifiedPermission.EmployeeForename;
-                    existingPermission.EmployeeSurename = modifiedPermission.EmployeeSurename;
-                    existingPermission.PermissionDate = modifiedPermission.PermissionDate;
-                    existingPermission.PermissionType = modifiedPermission.PermissionType;
-
-                    context.SaveChanges();
+                    return NotFound($"Permission with ID {id} not found");
                 }
 
-                // Actualizar en Elasticsearch
-                var settings = new ConnectionSettings(new Uri("http://localhost:9200/"))
-                    .DefaultIndex("apiindex");
-                var client = new ElasticClient(settings);
+                // Actualizar propiedades del permiso existente
+                existingPermission.EmployeeForename = modifiedPermission.EmployeeForename;
+                existingPermission.EmployeeSurename = modifiedPermission.EmployeeSurename;
+                existingPermission.PermissionDate = modifiedPermission.PermissionDate;
+                existingPermission.PermissionType = modifiedPermission.PermissionType;
 
-                var updateResponse = client.Update<TblPermission, object>(id, u => u
+                _dbContext.SaveChanges();
+
+                // Actualizar en Elasticsearch
+                var updateResponse = _elasticClient.Update<TblPermission, object>(id, u => u
                     .Doc(modifiedPermission)
                 );
 
-                return Ok("Permiso modificado correctamente");
+                return Ok("Successfully modified permission");
             }
             catch (Exception ex)
             {
-                return BadRequest($"Error al modificar el permiso: {ex.Message}");
+                return BadRequest($"Error modifying permission: {ex.Message}");
             }
         }
-
     }
 }

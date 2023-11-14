@@ -9,10 +9,10 @@
   <ItemGroup>
     <PackageReference Include="Elasticsearch.Net" Version="7.17.5" />
     <PackageReference Include="NEST" Version="7.17.5" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.5.0" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\API_ElasticSearch\API_ElasticSearch.csproj" />
     <ProjectReference Include="..\API_Models\API_Models.csproj" />
   </ItemGroup>
 

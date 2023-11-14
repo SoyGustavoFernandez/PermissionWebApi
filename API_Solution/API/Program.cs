@@ -1,7 +1,7 @@
-using API_Models;
 using API_Models.Models;
 using Nest;
 using System.Text.Json.Serialization;
+using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -23,7 +23,16 @@ builder.Services.AddSingleton<IElasticClient>(x =>
     return new ElasticClient(settings);
 });
 
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new OpenApiInfo { Title = "Reto Backend Sr", Version = "v1", Contact = new OpenApiContact { Name = "Gustavo Fernández Saavedra", Email = "soyGustavoFernandez@gmail.com", Url = new Uri("https://www.linkedin.com/in/gustavofernandezsaavedra") } });
+});
+
 var app = builder.Build();
+
+app.UseSwagger();
+
+app.UseSwaggerUI(c => { c.SwaggerEndpoint("/swagger/v1/swagger.json", "API v1"); });
 
 // Configure the HTTP request pipeline.
 
